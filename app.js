@@ -3,7 +3,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const md5 = require("md5");
+const bcrypt = require("bcrypt");
 
 
 const app = express();
@@ -33,15 +33,17 @@ app
     })
     .post((req, res) => {
         const userEnteredEmail = req.body.username;
-        const userEnteredPassword = md5(req.body.password);
+        const userEnteredPassword = req.body.password;
         User.findOne({ email: userEnteredEmail }, (err, foundItem) => {
             if (err) {
                 console.log(err);
             } else {
                 if (foundItem) {
-                    if (foundItem.password === userEnteredPassword) {
-                        res.render("secrets");
-                    } else { res.send("Invalid password"); }
+                    bcrypt.compare(userEnteredPassword, foundItem.password, function (err, result) {
+                        if (result === true) {
+                            res.render("secrets");
+                        }
+                    });
                 } else {
                     res.send("Invalid Email");
                 }
@@ -55,18 +57,21 @@ app
         res.render("register");
     })
     .post((req, res) => {
-        const newUser = new User({
-            email: req.body.username,
-            password: md5(req.body.password)
+        bcrypt.hash(req.body.password, 10, function (err, hash) {
+            const newUser = new User({
+                email: req.body.username,
+                password: hash
+            });
+            newUser.save((err) => {
+                if (err) {
+                    res.send(err);
+                    console.log(err);
+                } else {
+                    res.render("secrets");
+                }
+            });
         });
-        newUser.save((err) => {
-            if (err) {
-                res.send(err);
-                console.log(err);
-            } else {
-                res.render("secrets");
-            }
-        });
+
     });
 
 
